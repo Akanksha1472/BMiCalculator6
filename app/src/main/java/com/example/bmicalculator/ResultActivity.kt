@@ -1,6 +1,8 @@
 package com.example.bmicalculator
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -17,10 +19,28 @@ import androidx.compose.ui.unit.sp
 
 class ResultActivity : ComponentActivity() {
 
+    private lateinit var rewardsManager: RewardsManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val bmi = intent.getDoubleExtra("BMI_VALUE", 0.0)
+        rewardsManager = RewardsManager(this)
+
+        // Only save the reward on first creation, not on configuration changes (e.g. rotation)
+        if (savedInstanceState == null) {
+            val bmiCategory = getBmiResult(bmi).first
+            val reward = RewardsManager.calculateRewardForCategory(bmiCategory, bmi)
+            rewardsManager.saveReward(
+                reward,
+                onSuccess = {
+                    RewardNotificationService.showRewardNotification(this, reward)
+                },
+                onError = { exception ->
+                    Log.w("ResultActivity", "Could not save reward (Firebase unreachable): ${exception.message}")
+                }
+            )
+        }
 
         setContent {
             MaterialTheme {
@@ -33,6 +53,9 @@ class ResultActivity : ComponentActivity() {
                         onRecalculate = {
                             // ✅ CORRECT: go back to existing InputActivity
                             finish()
+                        },
+                        onViewRewards = {
+                            startActivity(Intent(this, RewardsActivity::class.java))
                         }
                     )
                 }
@@ -44,7 +67,8 @@ class ResultActivity : ComponentActivity() {
 @Composable
 fun ResultScreen(
     bmi: Double,
-    onRecalculate: () -> Unit
+    onRecalculate: () -> Unit,
+    onViewRewards: () -> Unit = {}
 ) {
     val (category, advice) = getBmiResult(bmi)
 
@@ -59,7 +83,7 @@ fun ResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 80.dp) // space for fixed button
+                .padding(bottom = 120.dp) // space for fixed buttons
         ) {
 
             Text(
@@ -126,23 +150,45 @@ fun ResultScreen(
             )
         }
 
-        // Fixed bottom button
-        Button(
-            onClick = onRecalculate,
+        // Fixed bottom buttons
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(bottom = 8.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7CFC00)
-            )
         ) {
-            Text(
-                text = "Re-Calculate",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold
-            )
+            Button(
+                onClick = onViewRewards,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1C1C1C)
+                )
+            ) {
+                Text(
+                    text = "View My Rewards",
+                    color = Color(0xFF7CFC00),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onRecalculate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7CFC00)
+                )
+            ) {
+                Text(
+                    text = "Re-Calculate",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

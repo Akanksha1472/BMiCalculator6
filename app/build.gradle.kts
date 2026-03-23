@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -58,5 +60,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.mockito:mockito-core:5.7.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-messaging")
 
 }
