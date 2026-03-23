@@ -1,5 +1,6 @@
 package com.example.bmicalculator
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -22,6 +23,26 @@ class ResultActivity : ComponentActivity() {
 
         val bmi = intent.getDoubleExtra("BMI_VALUE", 0.0)
 
+        // Sequence diagram step: task (BMI calculation) is complete →
+        // send to RewardsManager which calculates and persists the reward,
+        // then fires a notification to the kid (and optionally the parent).
+        // Guard with savedInstanceState == null so the reward is only created
+        // once per actual BMI submission, not again on screen rotations.
+        val (category, _) = getBmiResult(bmi)
+        val notificationHelper = NotificationHelper(this)
+        val rewardsManager = RewardsManager(
+            repository = LocalRewardsRepository(this),
+            notificationHelper = notificationHelper
+        )
+        if (savedInstanceState == null) {
+            rewardsManager.onTaskCompleted(
+                bmiCategory = category,
+                onParentNotify = { reward ->
+                    notificationHelper.sendParentNotification(reward)
+                }
+            )
+        }
+
         setContent {
             MaterialTheme {
                 Surface(
@@ -31,8 +52,10 @@ class ResultActivity : ComponentActivity() {
                     ResultScreen(
                         bmi = bmi,
                         onRecalculate = {
-                            // ✅ CORRECT: go back to existing InputActivity
                             finish()
+                        },
+                        onViewRewards = {
+                            startActivity(Intent(this, RewardsActivity::class.java))
                         }
                     )
                 }
@@ -44,7 +67,8 @@ class ResultActivity : ComponentActivity() {
 @Composable
 fun ResultScreen(
     bmi: Double,
-    onRecalculate: () -> Unit
+    onRecalculate: () -> Unit,
+    onViewRewards: () -> Unit = {}
 ) {
     val (category, advice) = getBmiResult(bmi)
 
@@ -59,7 +83,7 @@ fun ResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 80.dp) // space for fixed button
+                .padding(bottom = 128.dp) // space for fixed buttons
         ) {
 
             Text(
@@ -126,23 +150,45 @@ fun ResultScreen(
             )
         }
 
-        // Fixed bottom button
-        Button(
-            onClick = onRecalculate,
+        // Fixed bottom buttons
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(56.dp)
-                .padding(bottom = 8.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF7CFC00)
-            )
         ) {
-            Text(
-                text = "Re-Calculate",
-                color = Color.Black,
-                fontWeight = FontWeight.Bold
-            )
+            Button(
+                onClick = onViewRewards,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1C1C1C)
+                )
+            ) {
+                Text(
+                    text = "View My Rewards 🏆",
+                    color = Color(0xFF7CFC00),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = onRecalculate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF7CFC00)
+                )
+            ) {
+                Text(
+                    text = "Re-Calculate",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
